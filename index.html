@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Puja AI Assistant</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: #111827;
+      --panel-2: #1e293b;
+      --border: #2b3a55;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #7c3aed;
+      --accent-2: #2563eb;
+      --ok: #16a34a;
+      --warn: #eab308;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 14px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .brand { font-weight: 700; font-size: 16px; }
+    .meta { font-size: 12px; color: var(--muted); }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      color: #fff;
+      border-color: transparent;
+      font-weight: 600;
+    }
+    .view { display: none; flex-direction: column; gap: 10px; flex: 1; }
+    .view.active { display: flex; }
+
+    /* Character / Avatar Card */
+    .avatar-stage {
+      background: radial-gradient(circle at top, #1e1b4b, var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .char-box {
+      width: 92px;
+      height: 110px;
+      border-radius: 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #4338ca;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .char-box.active-anim {
+      animation: floatPulse 1.3s infinite ease-in-out;
+      box-shadow: 0 0 22px rgba(124, 58, 237, 0.65);
+    }
+    @keyframes floatPulse {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-4px) scale(1.04); }
+    }
+    .hair {
+      width: 44px;
+      height: 16px;
+      border-radius: 14px 14px 4px 4px;
+      background: #ec4899;
+      margin-bottom: -4px;
+    }
+    .head {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #fde68a;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .outfit {
+      width: 54px;
+      height: 28px;
+      border-radius: 10px 10px 16px 16px;
+      background: #2563eb;
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #fff;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .card-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .chip.selected {
+      background: var(--accent);
+      border-color: #a78bfa;
+    }
+
+    /* Chat */
+    #chat {
+      flex: 1;
+      min-height: 240px;
+      max-height: 45vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .msg {
+      padding: 9px 12px;
+      border-radius: 12px;
+      max-width: 86%;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .user { background: var(--accent-2); align-self: flex-end; }
+    .bot { background: var(--panel-2); align-self: flex-start; border: 1px solid var(--border); }
+    form { display: flex; gap: 6px; }
+    input, select {
+      flex: 1;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 14px;
+    }
+    button.act {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 13px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-voice { background: var(--accent); }
+    .btn-send { background: var(--ok); }
+    .log-list {
+      font-size: 12px;
+      color: var(--muted);
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <div class="brand">Puja AI Assistant</div>
+      <div id="liveStatus" class="meta">लोड हो रहा है...</div>
+    </div>
+    <div id="liveClock" class="meta">--:--:--</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="agent">Agent & Avatar</button>
+    <button class="tab-btn" data-tab="dashboard">Dashboard & HUD</button>
+    <button class="tab-btn" data-tab="studio">AI Studio & Market</button>
+    <button class="tab-btn" data-tab="controls">Voice, Gestures & Device</button>
+    <button class="tab-btn" data-tab="system">Security, Files & System</button>
+  </div>
+
+  <!-- TAB 1: AGENT & AVATAR -->
+  <section id="tab-agent" class="view active">
+    <div class="avatar-stage">
+      <div id="charBox" class="char-box active-anim">
+        <div id="charHair" class="hair"></div>
+        <div id="charHead" class="head">^ ^</div>
+        <div id="charOutfit" class="outfit">AI</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:15px;">कैरेक्टर: <span id="charName">Puja (2D/3D Ready)</span></div>
+        <div class="meta" style="margin:4px 0;">पर्सनैलिटी: <span id="persLabel">Friendly Assistant</span> • वेक-वर्ड: <span id="wakeLabel">ON</span></div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          <button class="chip" onclick="triggerWake('पूजा')">Wake: "पूजा"</button>
+          <button class="chip" onclick="toggleWake()">Wake Toggle</button>
+          <button class="chip" onclick="speak('नमस्ते, मैं पूजा AI एजेंट हूँ।')">बोलकर दिखाएं</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Avatar Looks & Outfits</div>
+        <div class="pill-row">
+          <button class="chip selected" onclick="setLook('pink','#2563eb','Cyber Outfit',this)">Cyber</button>
+          <button class="chip" onclick="setLook('#10b981','#7c3aed','Neon Hoodie',this)">Neon</button>
+          <button class="chip" onclick="setLook('#f59e0b','#dc2626','Classic Suit',this)">Classic</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Personalities & Voice</div>
+        <div class="pill-row">
+          <button class="chip selected" onclick="setPersonality('Friendly Assistant',1.05,this)">Friendly</button>
+          <button class="chip" onclick="setPersonality('Fast Tactical',1.25,this)">Fast Mode</button>
+          <button class="chip" onclick="setPersonality('Calm Mentor',0.92,this)">Calm</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="chat">
+      <div class="msg bot">नमस्ते! पूजा AI एजेंट तैयार है। चैट करें, माइक दबाएं, या किसी टैब से फीचर ट्रिगर करें।</div>
+    </div>
+
+    <form id="chatForm">
+      <input id="chatInput" placeholder="कमांड लिखें (जैसे: समय, बैटरी, मार्केट, इमेज, टॉर्च)..." required />
+      <button type="button" class="act btn-voice" id="micBtn">🎤</button>
+      <button type="submit" class="act btn-send">भेजें</button>
+    </form>
+  </section>
+
+  <!-- TAB 2: DASHBOARD & HUD -->
+  <section id="tab-dashboard" class="view">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Live Device Status</div>
+        <div id="dashClock" class="meta">समय: --</div>
+        <div id="dashDate" class="meta">तारीख: --</div>
+        <div id="dashBattery" class="meta">बैटरी: जांच रहे हैं...</div>
+        <div id="dashNet" class="meta">नेटवर्क: जांच रहे हैं...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">HUD & Orb Styles</div>
+        <div class="pill-row">
+          <button class="chip selected" onclick="setHud('HUD Style #1 (Orb)',this)">HUD #1 Orb</button>
+          <button class="chip" onclick="setHud('HUD Style #7 (Pulse Ring)',this)">HUD #7 Ring</button>
+          <button class="chip" onclick="setHud('HUD Style #14 (Minimal)',this)">HUD #14 Minimal</button>
+        </div>
+        <div id="hudActive" class="meta" style="margin-top:8px;">सक्रिय: HUD Style #1 (Orb)</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Command & Event Log</div>
+      <div id="eventLog" class="log-list"></div>
+    </div>
+  </section>
+
+  <!-- TAB 3: AI STUDIO & MARKET -->
+  <section id="tab-studio" class="view">
+    <div class="card">
+      <div class="card-title">AI Studio (Image / Video / Thumbnail / Screen & YouTube Analysis)</div>
+      <div class="pill-row">
+        <button class="chip" onclick="runFeature('Image Generator','प्रॉम्प्ट के आधार पर AI इमेज जनरेशन जॉब तैयार की गई।')">Image Gen</button>
+        <button class="chip" onclick="runFeature('Video & Thumbnail','वीडियो स्क्रिप्ट और थंबनेल लेआउट तैयार किया गया।')">Video / Thumb</button>
+        <button class="chip" onclick="runFeature('Screen & YouTube Analyzer','स्क्रीन / YouTube लिंक एनालिसिस पाइपलाइन ट्रिगर की गई।')">Screen / YT</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Trading & Market Analysis</div>
+      <div class="pill-row">
+        <button class="chip" onclick="runFeature('Market Analysis','ट्रेंड और वोलैटिलिटी स्नैपशॉट अपडेट किया गया।')">Market Scan</button>
+        <button class="chip" onclick="runFeature('Trading Mode','ऑटो/मैनुअल ट्रेडिंग सिग्नल नियम लॉग किए गए।')">Trading Rule</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: VOICE, GESTURES & DEVICE -->
+  <section id="tab-controls" class="view">
+    <div class="card">
+      <div class="card-title">Voice & Sound (100+ Wake Words / Real-time Voice / VAD)</div>
+      <div class="pill-row">
+        <button class="chip" onclick="triggerWake('हे पूजा')">Wake: हे पूजा</button>
+        <button class="chip" onclick="triggerWake('अलर्ट पूजा')">Wake: अलर्ट पूजा</button>
+        <button class="chip" onclick="runFeature('Voice Activity Detection','VAD और No-Beep लिसनिंग मोड अपडेट किया गया।')">VAD Mode</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Shake, Clap & Device Controls</div>
+      <div class="pill-row">
+        <button class="chip" onclick="runFeature('Shake Detection','फोन शेक (Shake) इवेंट सिम्युलेट किया गया।')">Simulate Shake</button>
+        <button class="chip" onclick="runFeature('Clap Detection','क्लैप (Clap) ट्रिगर रजिस्टर किया गया।')">Simulate Clap</button>
+        <button class="chip" onclick="runFeature('Device Control','टॉर्च, वॉल्यूम, ब्राइटनेस व Wi-Fi/BT कमांड क्यू में भेजी गई।')">Torch / Wi-Fi / Vol</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: SECURITY, FILES & SYSTEM -->
+  <section id="tab-system" class="view">
+    <div class="card">
+      <div class="card-title">Security & Access</div>
+      <div class="pill-row">
+        <button class="chip" onclick="runFeature('Voice Screen/App Unlock','वॉइस ऑथेंटिकेशन प्रोफ़ाइल चेक की गई।')">Voice Unlock</button>
+        <button class="chip" onclick="runFeature('User Profile','यूज़र नाम व एक्सेस नियम अपडेट किए गए।')">Name / Access</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Communication, Files & System Actions</div>
+      <div class="pill-row">
+        <button class="chip" onclick="runFeature('WhatsApp Voice Action','WhatsApp कॉल / मैसेज कमांड ड्राफ्ट तैयार किया गया।')">WhatsApp Voice</button>
+        <button class="chip" onclick="runFeature('File Manager','फ़ोल्डर और फाइल एक्शन कमांड लॉग की गई।')">File Manager</button>
+        <button class="chip" onclick="runFeature('System Actions','स्क्रीनशॉट, कॉन्टैक्ट, ऐप ओपन व जेस्चर कमांड लॉग की गई।')">System Action</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    let wakeEnabled = true;
+    let currentPersonality = 'Friendly Assistant';
+    let speechRate = 1.05;
+
+    const chatEl = document.getElementById('chat');
+    const logEl = document.getElementById('eventLog');
+
+    function logEvent(msg) {
+      const time = new Date().toLocaleTimeString('hi-IN');
+      const line = document.createElement('div');
+      line.textContent = `[${time}] ${msg}`;
+      logEl.prepend(line);
+      document.getElementById('liveStatus').textContent = msg;
+    }
+
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'hi-IN';
+        u.rate = speechRate;
+        window.speechSynthesis.speak(u);
+      }
+    }
+
+    function addChat(text, cls = 'bot', doSpeak = false) {
+      const d = document.createElement('div');
+      d.className = 'msg ' + cls;
+      d.textContent = text;
+      chatEl.appendChild(d);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      if (cls === 'bot' && doSpeak) speak(text);
+    }
+
+    function setLook(hairColor, outfitColor, label, btn) {
+      document.getElementById('charHair').style.background = hairColor;
+      document.getElementById('charOutfit').style.background = outfitColor;
+      document.getElementById('charOutfit').textContent = label.split(' ')[0];
+      if (btn) {
+        btn.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+      }
+      logEvent('अवतार लुक बदला: ' + label);
+    }
+
+    function setPersonality(name, rate, btn) {
+      currentPersonality = name;
+      speechRate = rate;
+      document.getElementById('persLabel').textContent = name;
+      if (btn) {
+        btn.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+      }
+      logEvent('पर्सनैलिटी चुनी गई: ' + name);
+    }
+
+    function setHud(hudName, btn) {
+      document.getElementById('hudActive').textContent = 'सक्रिय: ' + hudName;
+      if (btn) {
+        btn.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+        btn.classList.add('selected');
+      }
+      logEvent('HUD स्टाइल: ' + hudName);
+    }
+
+    function toggleWake() {
+      wakeEnabled = !wakeEnabled;
+      document.getElementById('wakeLabel').textContent = wakeEnabled ? 'ON' : 'OFF';
+      logEvent('Wake-word ' + (wakeEnabled ? 'चालू' : 'बंद'));
+    }
+
+    function triggerWake(word) {
+      if (!wakeEnabled) {
+        addChat('Wake-word अभी OFF है। पहले इसे ON करें।', 'bot', false);
+        return;
+      }
+      document.getElementById('charHead').textContent = '• •';
+      setTimeout(() => { document.getElementById('charHead').textContent = '^ ^'; }, 1200);
+      const msg = `Wake-word "${word}" डिटेक्ट हुआ! (${currentPersonality})`;
+      addChat(msg, 'bot', true);
+      logEvent(msg);
+    }
+
+    function runFeature(feature, detail) {
+      const msg = `${feature}: ${detail}`;
+      addChat(msg, 'bot', true);
+      logEvent(msg);
+    }
+
+    function routeCommand(raw) {
+      const q = raw.toLowerCase();
+      if (q.includes('समय') || q.includes('time')) {
+        return 'अभी का समय है: ' + new Date().toLocaleTimeString('hi-IN');
+      }
+      if (q.includes('तारीख') || q.includes('date')) {
+        return 'आज की तारीख है: ' + new Date().toLocaleDateString('hi-IN');
+      }
+      if (q.includes('बैटरी') || q.includes('battery')) {
+        return document.getElementById('dashBattery').textContent;
+      }
+      if (q.includes('मार्केट') || q.includes('ट्रेड') || q.includes('trade')) {
+        return 'मार्केट व ट्रेडिंग मॉड्यूल सक्रिय है। कृपया सिंबल या नियम बताएं।';
+      }
+      if (q.includes('इमेज') || q.includes('वीडियो') || q.includes('image') || q.includes('video')) {
+        return 'AI Studio तैयार है। अपना प्रॉम्प्ट दें ताकि जनरेशन जॉब तैयार की जा सके।';
+      }
+      return `[${currentPersonality}] कमांड "${raw}" प्राप्त हुई।`;
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.getElementById('chatForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const inp = document.getElementById('chatInput');
+      const val = inp.value.trim();
+      if (!val) return;
+      addChat(val, 'user', false);
+      const ans = routeCommand(val);
+      addChat(ans, 'bot', true);
+      logEvent('चैट कमांड: ' + val);
+      inp.value = '';
+    });
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const micBtn = document.getElementById('micBtn');
+    if (SR) {
+      const rec = new SR();
+      rec.lang = 'hi-IN';
+      micBtn.addEventListener('click', () => {
+        logEvent('माइक सुन रहा है...');
+        rec.start();
+      });
+      rec.onresult = (ev) => {
+        const spoken = ev.results[0][0].transcript;
+        document.getElementById('chatInput').value = spoken;
+        document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+      };
+    } else {
+      micBtn.addEventListener('click', () => {
+        addChat('इस WebView में स्पीच रिकग्निशन उपलब्ध नहीं है, टेक्स्ट में कमांड लिखें।', 'bot', false);
+      });
+    }
+
+    function updateClockAndDevice() {
+      const now = new Date();
+      const tStr = now.toLocaleTimeString('hi-IN');
+      const dStr = now.toLocaleDateString('hi-IN');
+      document.getElementById('liveClock').textContent = tStr;
+      document.getElementById('dashClock').textContent = 'समय: ' + tStr;
+      document.getElementById('dashDate').textContent = 'तारीख: ' + dStr;
+      document.getElementById('dashNet').textContent = 'नेटवर्क: ' + (navigator.onLine ? 'Online' : 'Offline');
+    }
+    setInterval(updateClockAndDevice, 1000);
+    updateClockAndDevice();
+
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(b => {
+        const syncBat = () => {
+          document.getElementById('dashBattery').textContent =
+            `बैटरी: ${Math.round(b.level * 100)}% (${b.charging ? 'Charging' : 'Discharging'})`;
+        };
+        syncBat();
+        b.addEventListener('levelchange', syncBat);
+        b.addEventListener('chargingchange', syncBat);
+      });
+    } else {
+      document.getElementById('dashBattery').textContent = 'बैटरी: WebView API उपलब्ध नहीं';
+    }
+
+    logEvent('Puja AI Assistant इनिशियलाइज़ हुआ');
+  </script>
+</body>
+</html>
