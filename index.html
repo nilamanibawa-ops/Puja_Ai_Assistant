@@ -377,6 +377,9 @@
     }
 
     function speak(text) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.speak === 'function') {
+      try { window.AndroidBridge.speak(text); return; } catch(e) {}
+    }
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
@@ -386,7 +389,7 @@
       }
     }
 
-    function addChat(text, cls = 'bot', doSpeak = false) {
+    function addChat(text, cls = 'bot', doSpeak = true) {
       const d = document.createElement('div');
       d.className = 'msg ' + cls;
       d.textContent = text;
@@ -452,7 +455,61 @@
 
     function routeCommand(raw) {
       const q = raw.toLowerCase();
-      if (q.includes('समय') || q.includes('time')) {
+      if (/^(sms|संदेश|मैसेज)\s+/i.test(cmd.trim()) && cmd.includes(":")) {
+  const parts = cmd.split(":");
+  const num = (parts[0].replace(/^(sms|संदेश|मैसेज)/i, "")).replace(/[^0-9+]/g, "").trim();
+  const msgBody = parts.slice(1).join(":").trim();
+  if (num && msgBody) {
+    reply = num + " पर SMS भेज रही हूँ...";
+    if (window.AndroidBridge && typeof window.AndroidBridge.sendSms === "function") {
+      window.AndroidBridge.sendSms(num, msgBody);
+    }
+  } else {
+    reply = "कृपया इस तरह लिखें: SMS 9876543210: नमस्ते";
+  }
+} else if (/^(open|खोलो|ओपन)\s+/i.test(cmd.trim()) || cmd.toLowerCase().includes("instagram") || cmd.includes("इंस्टाग्राम") || cmd.toLowerCase().includes("youtube") || cmd.includes("यूट्यूब") || cmd.includes("कैमरा") || cmd.toLowerCase().includes("camera") || cmd.includes("गैलरी") || cmd.toLowerCase().includes("gallery") || cmd.includes("कॉन्टैक्ट") || cmd.toLowerCase().includes("contact")) {
+  let targetApp = cmd.replace(/^(open|खोलो|ओपन)\s+/i, "").trim();
+  if (!targetApp) targetApp = cmd.trim();
+  const low = targetApp.toLowerCase();
+  const known = {
+    "instagram": ["com.instagram.android", "इंस्टाग्राम"],
+    "इंस्टाग्राम": ["com.instagram.android", "इंस्टाग्राम"],
+    "youtube": ["com.google.android.youtube", "यूट्यूब"],
+    "यूट्यूब": ["com.google.android.youtube", "यूट्यूब"],
+    "whatsapp": ["com.whatsapp", "व्हाट्सएप"],
+    "व्हाट्सएप": ["com.whatsapp", "व्हाट्सएप"],
+    "camera": ["android.media.action.STILL_IMAGE_CAMERA", "कैमरा"],
+    "कैमरा": ["android.media.action.STILL_IMAGE_CAMERA", "कैमरा"],
+    "gallery": ["com.android.gallery3d", "गैलरी"],
+    "गैलरी": ["com.android.gallery3d", "गैलरी"],
+    "contacts": ["com.android.contacts", "कॉन्टैक्ट्स"],
+    "contact": ["com.android.contacts", "कॉन्टैक्ट्स"],
+    "कॉन्टैक्ट": ["com.android.contacts", "कॉन्टैक्ट्स"],
+    "कॉन्टैक्ट्स": ["com.android.contacts", "कॉन्टैक्ट्स"]
+  };
+  let matched = null;
+  for (const key of Object.keys(known)) {
+    if (low.includes(key)) { matched = known[key]; break; }
+  }
+  if (matched && matched[0].startsWith("android.media.action.")) {
+    reply = matched[1] + " खोल रही हूँ...";
+    if (window.AndroidBridge && typeof window.AndroidBridge.openAction === "function") {
+      window.AndroidBridge.openAction(matched[0]);
+    }
+  } else if (matched) {
+    reply = matched[1] + " खोल रही हूँ...";
+    if (window.AndroidBridge && typeof window.AndroidBridge.openApp === "function") {
+      window.AndroidBridge.openApp(matched[0]);
+    }
+  } else {
+    reply = targetApp + " खोलने की कोशिश कर रही हूँ...";
+    if (window.AndroidBridge && typeof window.AndroidBridge.openByName === "function") {
+      window.AndroidBridge.openByName(targetApp);
+    }
+  }
+} else if (cmd.includes("हेलो") || cmd.toLowerCase().includes("hello")) {
+  reply = "नमस्ते! मैं पूजा AI असिस्टेंट हूँ, बताइए मैं आपकी क्या मदद करूँ?";
+} else if (q.includes('समय') || q.includes('time')) {
         return 'अभी का समय है: ' + new Date().toLocaleTimeString('hi-IN');
       }
       if (q.includes('तारीख') || q.includes('date')) {
