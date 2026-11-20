@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -40,30 +40,37 @@ jobs:
         run: |
           mkdir -p android-app/app/src/main/java/com/puja/aiassistant \
                    android-app/app/src/main/res/layout \
+                   android-app/app/src/main/res/values \
                    android-app/app/src/main/assets
 
           cp index.html android-app/app/src/main/assets/index.html
 
+          cat << 'PROPS' > android-app/local.properties
+          sdk.dir=$HOME/android-sdk
+          PROPS
+
           cat << 'GRADLE' > android-app/settings.gradle
+          pluginManagement {
+            repositories {
+              gradlePluginPortal()
+              google()
+              mavenCentral()
+            }
+          }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
           rootProject.name = "PujaAIAssistant"
           include ':app'
           GRADLE
 
           cat << 'GRADLE' > android-app/build.gradle
-          buildscript {
-            repositories {
-              google()
-              mavenCentral()
-            }
-            dependencies {
-              classpath 'com.android.tools.build:gradle:8.2.2'
-            }
-          }
-          allprojects {
-            repositories {
-              google()
-              mavenCentral()
-            }
+          plugins {
+            id 'com.android.application' version '8.2.2' apply false
           }
           GRADLE
 
@@ -86,11 +93,22 @@ jobs:
                 minifyEnabled false
               }
             }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
           }
           dependencies {
             implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           GRADLE
+
+          cat << 'XML' > android-app/app/src/main/res/values/styles.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+            <style name="AppTheme" parent="Theme.AppCompat.NoActionBar" />
+          </resources>
+          XML
 
           cat << 'XML' > android-app/app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -100,7 +118,7 @@ jobs:
             <application
               android:label="Puja AI Assistant"
               android:usesCleartextTraffic="true"
-              android:theme="@style/Theme.AppCompat.NoActionBar">
+              android:theme="@style/AppTheme">
               <activity android:name=".MainActivity" android:exported="true">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN" />
@@ -162,10 +180,18 @@ jobs:
           }
           JAVA
 
-      - name: Build Debug APK
+      - name: Build Debug APK with Gradle Wrapper
         run: |
           cd android-app
-          gradle assembleDebug --no-daemon
+          if ! command -v gradle >/dev/null 2>&1; then
+            curl -fsSL https://services.gradle.org/distributions/gradle-8.5-bin.zip -o /tmp/gradle-8.5.zip
+            unzip -q /tmp/gradle-8.5.zip -d /tmp
+            /tmp/gradle-8.5/bin/gradle wrapper --gradle-version 8.5 --no-daemon
+          else
+            gradle wrapper --gradle-version 8.5 --no-daemon
+          fi
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
